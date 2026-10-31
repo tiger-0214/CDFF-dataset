@@ -1,5 +1,8 @@
 # CDFF 数据集网站
 
+**线上地址：<https://tiger-0214.github.io/CDFF-dataset/>**
+（仓库：<https://github.com/tiger-0214/CDFF-dataset>，main 分支根目录 → GitHub Pages）
+
 单页静态站点，中英双语，无构建步骤、无外部 CDN 依赖。
 
 ```
@@ -61,9 +64,15 @@ python3 /tmp/check_site.py     # 四档视口溢出、控制台错误、i18n 完
 
 ## 部署
 
-静态托管即可。两种已验证的路径：
+**已部署**：个人账号独立仓库，main 分支根目录发布，无需构建步骤。
 
-**A. 个人账号独立仓库（最快）**
+- 线上：<https://tiger-0214.github.io/CDFF-dataset/>
+- 仓库：<https://github.com/tiger-0214/CDFF-dataset>
+- 更新方式：在本目录改完后 `git add -A && git commit -m "..." && git push`，Pages 约 40 秒后重建。
+
+以下两条路径供换托管位置时参考：
+
+**A. 个人账号独立仓库（当前所用）**
 
 ```bash
 cd website
