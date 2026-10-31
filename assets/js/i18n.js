@@ -114,6 +114,7 @@
     "ds.comp.4": "Every validation verdict is persisted and traceable to a specific threshold and failure code",
     "ds.comp.5": "Preprocessing is pure CPU: one command each for background normalisation and LoRA dataset packing",
     "ds.file.h": "Layout and format",
+    "ds.tree": "samples/\n├── b000_rgb.png        # visible-light render\n├── b000_ir.png         # pseudo-infrared, same coordinates\n├── b000_meta.json      # conditions + gt_bbox + depth + validation log\n└── _batch_results.json # batch summary",
 
     "res.kicker": "Results",
     "res.h2": "How well the geometry is honoured",
