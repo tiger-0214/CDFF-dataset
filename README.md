@@ -93,6 +93,29 @@ gh api -X POST repos/<user>/CDFF-dataset/pages -f 'source[branch]=main' -f 'sour
 
 ## 素材
 
-`assets/img/` 里的图由 `·重点节点总结笔记/论文写作/figures/fig*.png` 生成：
-长边缩到 1400 px，输出 webp（q=84, method=6）与 jpg（progressive）双份，
-7 张合计 1.6 MB。重新出图后按同样参数覆盖即可，HTML 不用改。
+`assets/img/` 里的图长边缩到 1400 px，输出 webp（q=84, method=6）与 jpg（progressive）双份，
+7 张合计 1.7 MB。重新出图后按同样参数覆盖即可，HTML 不用改。
+
+### 图与论文的对应关系（换图前必看）
+
+**页面主图（Hero 架构图）必须取自论文 docx，不要用 `figures/` 里的 `fig2_architecture.png`。**
+师兄重做过这张图，新版只存在于 docx 的 `word/media/image1.png`，没有回写到 `figures/`；
+`figures/fig2_architecture.png`（2026-08-31）是旧版。
+
+| 本站文件 | 站内图号 | 论文对应 | 来源与校验 |
+|---|---|---|---|
+| `fig2_architecture` | Hero 主图 | **Fig. 1**（修订版） | docx `word/media/image1.png`，1526×1004，md5 `d2d3ada2a924c05208f853a66d69ca46` |
+| `fig4_marker_injection` | 图 2 | Fig. 2 | `figures/fig4`，md5 `8c120c684a33cc4aae1b368ed5a46941`，与 docx 一致 |
+| `fig6_alignment` | 图 5 | Fig. 3 | `figures/fig6`，md5 `2144e96e15c2a3b4e1f83a9859d5d49d`，与 docx 一致 |
+| `fig7_ablation` | 图 6 | Fig. 4 | `figures/fig7`，md5 `2e39302d972c976654bf0e84560813f5`，与 docx 一致 |
+| `fig1_challenges` | 图 1 | 未收录 | `figures/fig1`（2026-08-31），论文最终版无此图 |
+| `fig5_rgb_ir_bbox` | 图 3 | 未收录 | `figures/fig5`（2026-08-31） |
+| `fig3_background_pool` | 图 4 | 未收录 | `figures/fig3`（2026-08-31） |
+
+论文最终版只嵌 4 张图，`CDFF-final.docx` 与 v21/v22/v23 的 4 张 media 逐字节相同——
+说明图在 `final` 之后没再改过。核对命令：
+
+```bash
+unzip -l CDFF-final.docx | grep word/media        # 应只有 4 个 image
+unzip -p CDFF-final.docx word/media/image1.png | md5sum
+```
