@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDFF — 低慢小目标合成数据集生成框架</title>
+<meta name="description" content="CDFF：几何先声明、渲染后可验证的低慢小（LSS）空中目标合成数据集生成框架。双 Agent 对抗 + 闭环反馈，输出像素对齐 RGB–伪红外对与标注框。">
+<meta name="theme-color" content="#0c1b2a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="CDFF — 低慢小目标合成数据集生成框架">
+<meta property="og:description" content="几何先声明、渲染后可验证。每个样本的目标位置、尺度与标注框在渲染之前就已确定，渲染之后可被独立验证。">
+<meta property="og:image" content="assets/img/fig2_architecture.jpg">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230c1b2a'/><circle cx='16' cy='16' r='4' fill='%2338bdf8'/><rect x='5' y='14.5' width='22' height='3' rx='1.5' fill='%2338bdf8' opacity='.45'/></svg>">
+<link rel="preload" href="assets/img/fig2_architecture.webp" as="image" type="image/webp">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main" data-i18n="a11y.skip">跳至正文</a>
+
+<header class="site-header" id="siteHeader">
+  <div class="wrap header-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark">CDFF</span>
+      <span class="brand-sub" data-i18n="brand.sub">低慢小目标合成数据框架</span>
+    </a>
+    <nav class="site-nav" id="siteNav" aria-label="主导航">
+      <a href="#overview" data-i18n="nav.overview">概览</a>
+      <a href="#framework" data-i18n="nav.framework">框架</a>
+      <a href="#dataset" data-i18n="nav.dataset">数据集</a>
+      <a href="#results" data-i18n="nav.results">结果</a>
+      <a href="#validation" data-i18n="nav.validation">验证</a>
+      <a href="#access" data-i18n="nav.access">获取</a>
+      <a href="#cite" data-i18n="nav.cite">引用</a>
+    </nav>
+    <div class="header-actions">
+      <button class="lang-btn" id="langToggle" type="button" aria-label="切换语言 / Switch language">
+        <span class="lang-on" data-lang-on="zh">中</span><span class="lang-sep">/</span><span class="lang-on" data-lang-on="en">EN</span>
+      </button>
+      <a class="btn btn-ghost btn-sm" href="https://github.com/TAAS2024/low-slow-small-targets-dataset" target="_blank" rel="noopener">GitHub</a>
+      <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-label="菜单">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ======================= HERO ======================= -->
+  <section class="hero" id="top">
+    <div class="hero-grid-bg" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <p class="eyebrow" data-i18n="hero.eyebrow">Neurocomputing · Manuscript under review</p>
+      <h1 data-i18n="hero.title">几何先声明<br><em>渲染后可验证</em>的合成数据集</h1>
+      <p class="hero-lead" data-i18n="hero.lead">面向低慢小（LSS）空中目标的合成数据生成框架。双 Agent 对抗 + 闭环反馈：每个样本的目标位置、尺度与标注框在渲染之前就已确定，渲染之后可被独立验证。</p>
+
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#dataset" data-i18n="hero.cta1">查看数据集规格</a>
+        <a class="btn btn-ghost" href="https://github.com/TAAS2024/low-slow-small-targets-dataset" target="_blank" rel="noopener" data-i18n="hero.cta2">浏览代码仓库</a>
+      </div>
+
+      <dl class="hero-stats">
+        <div class="stat">
+          <dt><span class="num" data-count="37852">37,852</span></dt>
+          <dd data-i18n="hero.stat1">张实拍背景 · 九类场景</dd>
+        </div>
+        <div class="stat">
+          <dt><span class="num" data-count="302">302</span></dt>
+          <dd data-i18n="hero.stat2">对像素对齐 RGB–伪红外样本</dd>
+        </div>
+        <div class="stat">
+          <dt><span class="num" data-count="1.226" data-decimals="3">1.226</span><span class="unit">px</span></dt>
+          <dd data-i18n="hero.stat3">质心位置误差 E<sub>pos</sub></dd>
+        </div>
+        <div class="stat">
+          <dt><span class="num" data-count="14.58" data-decimals="2">14.58</span><span class="unit">s</span></dt>
+          <dd data-i18n="hero.stat4">单对样本生成耗时</dd>
+        </div>
+      </dl>
+    </div>
+
+    <figure class="hero-figure wrap">
+      <picture>
+        <source srcset="assets/img/fig2_architecture.webp" type="image/webp">
+        <img src="assets/img/fig2_architecture.jpg" width="1400" height="1160" alt="CDFF 双 Agent 架构：左侧 M1–M6 生成端，右侧 V1–V9 验证端，失败码回流至闭环" fetchpriority="high">
+      </picture>
+      <figcaption data-i18n="hero.figcap">CDFF 双 Agent 架构：生成端 M1–M6 从背景图自身推导空间条件，验证端 V1–V9 逐级审查，失败码回流驱动增量微调。</figcaption>
+    </figure>
+  </section>
+
+  <!-- ======================= OVERVIEW ======================= -->
+  <section class="section" id="overview">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="kicker" data-i18n="overview.kicker">为什么需要它</p>
+        <h2 data-i18n="overview.h2">两个障碍，一个解法</h2>
+        <p class="section-lead" data-i18n="overview.lead">低慢小目标在 200–500 m 距离上只占 15×15 到 30×30 像素，雷达截面小、声学与热特征弱，真实数据极难采集。用扩散模型批量生成训练数据看似直接，实际卡在两件事上。</p>
+      </header>
+
+      <div class="problem-grid">
+        <article class="problem-card">
+          <span class="problem-num">01</span>
+          <h3 data-i18n="overview.p1h">无法无人值守地控制几何</h3>
+          <p data-i18n="overview.p1p">布局条件模型需要逐样本手工准备条件图；提示词条件给不出可信的坐标与尺度。生成器不知道目标该落在哪、该多大，标注框也就无从谈起。</p>
+        </article>
+        <article class="problem-card">
+          <span class="problem-num">02</span>
+          <h3 data-i18n="overview.p2h">无法判断哪些样本该留下</h3>
+          <p data-i18n="overview.p2p">BRISQUE、ImageReward 一类感知指标在成图上计算，与检测器需要的几何一致性解耦：一张图可以很逼真，却违反透视或尺度。</p>
+        </article>
+        <article class="problem-card accent">
+          <span class="problem-num">→</span>
+          <h3 data-i18n="overview.p3h">CDFF 把它们当成同一个问题</h3>
+          <p data-i18n="overview.p3p">把一张普通背景照片转成几何已声明、且事后可验证的样本。几何来自背景图本身——单目相对深度与规则化可供性图——不需要人工布局。</p>
+        </article>
+      </div>
+
+      <figure class="figure">
+        <picture>
+          <source srcset="assets/img/fig1_challenges.webp" type="image/webp">
+          <img src="assets/img/fig1_challenges.jpg" width="1400" height="511" loading="lazy" alt="低慢小目标三大挑战示意：像素尺度极小、背景复杂、可见光与红外模态缺口">
+        </picture>
+        <figcaption data-i18n="overview.figcap">图 1　低慢小目标的三个约束：像素占比极小、场景背景复杂、可见光–红外模态间存在缺口。</figcaption>
+      </figure>
+
+      <div class="feature-grid">
+        <article class="feature">
+          <h3 data-i18n="feat.1h">几何先声明</h3>
+          <p data-i18n="feat.1p">目标的位置、尺度与标注框在渲染之前由声明距离与解析式给出，渲染后只是去核对它有没有兑现。</p>
+        </article>
+        <article class="feature">
+          <h3 data-i18n="feat.2h">零手工布局</h3>
+          <p data-i18n="feat.2p">插入位置由单目相对深度与可供性图自动推导，批量生成不需要逐张准备条件图。</p>
+        </article>
+        <article class="feature">
+          <h3 data-i18n="feat.3h">闭环反馈</h3>
+          <p data-i18n="feat.3p">验证端输出结构化失败码，路由回对应组件，累计到阈值后触发增量微调与权重替换。</p>
+        </article>
+        <article class="feature">
+          <h3 data-i18n="feat.4h">像素对齐 RGB–IR</h3>
+          <p data-i18n="feat.4p">伪红外由同一张成图逐像素转换而来，因此两种模态的标注框天然共享同一坐标。</p>
+        </article>
+        <article class="feature">
+          <h3 data-i18n="feat.5h">目标 LoRA 可替换</h3>
+          <p data-i18n="feat.5p">框架不绑定某一类目标：换成任意 SD 1.5 架构的 kohya 格式 LoRA，改一行路径即可。</p>
+        </article>
+        <article class="feature">
+          <h3 data-i18n="feat.6h">纯 CPU 可跑通</h3>
+          <p data-i18n="feat.6p">预处理、验证链与全部复现脚本不依赖 GPU；只有生成与训练需要显卡。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= FRAMEWORK ======================= -->
+  <section class="section section-alt" id="framework">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="kicker" data-i18n="fw.kicker">架构</p>
+        <h2 data-i18n="fw.h2">生成端 · 验证端 · 闭环</h2>
+        <p class="section-lead" data-i18n="fw.lead">六个生成模块把背景照片变成成对样本，九个验证模块对它逐级审查；审查不通过的样本给出可路由的失败码，而不是一个笼统的分数。</p>
+      </header>
+
+      <ol class="pipeline">
+        <li>
+          <span class="pipe-id">M1</span>
+          <h3 data-i18n="m1.h">语义解析</h3>
+          <p data-i18n="m1.p">自然语言任务描述 → 结构化 schema，给出目标类型、距离档位与场景约束。</p>
+        </li>
+        <li>
+          <span class="pipe-id">M2</span>
+          <h3 data-i18n="m2.h">背景检索</h3>
+          <p data-i18n="m2.p">按场景类、时段、天气四层降级匹配，从九类背景池中取图并记录匹配级别。</p>
+        </li>
+        <li>
+          <span class="pipe-id">M3</span>
+          <h3 data-i18n="m3.h">深度与可供性</h3>
+          <p data-i18n="m3.p">单目相对深度 + 规则化可供性图，给出可插入的深度平面与候选落位。</p>
+        </li>
+        <li>
+          <span class="pipe-id">M4</span>
+          <h3 data-i18n="m4.h">marker 注入</h3>
+          <p data-i18n="m4.p">把几何声明（中心点与尺寸）写成视觉标记注入背景，作为后续重绘的锚。</p>
+        </li>
+        <li>
+          <span class="pipe-id">M5</span>
+          <h3 data-i18n="m5.h">LoRA 目标合成</h3>
+          <p data-i18n="m5.p">目标 LoRA 只合并进 UNet，在标记区域合成目标；随后 ControlNet 条件重绘完成融合。</p>
+        </li>
+        <li>
+          <span class="pipe-id">M6</span>
+          <h3 data-i18n="m6.h">RGB → 伪红外</h3>
+          <p data-i18n="m6.p">按同一几何逐像素转换为白热伪红外，得到共享坐标的 RGB–IR 对。</p>
+        </li>
+      </ol>
+
+      <div class="split">
+        <figure class="figure figure-tight">
+          <picture>
+            <source srcset="assets/img/fig4_marker_injection.webp" type="image/webp">
+            <img src="assets/img/fig4_marker_injection.jpg" width="1400" height="694" loading="lazy" alt="标记注入四列示意：背景、深度/可供性、几何标记、合成结果">
+          </picture>
+          <figcaption data-i18n="fw.fig4">图 2　标记注入的四步中间产物：背景 → 深度与可供性 → 几何标记 → 合成结果。</figcaption>
+        </figure>
+        <figure class="figure figure-tight">
+          <picture>
+            <source srcset="assets/img/fig5_rgb_ir_bbox.webp" type="image/webp">
+            <img src="assets/img/fig5_rgb_ir_bbox.jpg" width="1400" height="476" loading="lazy" alt="像素对齐的 RGB、伪红外与标注框三元组">
+          </picture>
+          <figcaption data-i18n="fw.fig5">图 3　RGB、伪红外与标注框三元组。伪红外由同一成图逐像素转换，因此两者共享完全相同的框坐标。</figcaption>
+        </figure>
+      </div>
+
+      <div class="loop-strip">
+        <div class="loop-step">
+          <h4 data-i18n="loop.s1h">结构化失败码</h4>
+          <p class="mono" data-i18n="loop.s1p">S6_BLUR · S7_SCALE_MISMATCH · S8_POSITION_JUMP …</p>
+        </div>
+        <div class="loop-arrow" aria-hidden="true">→</div>
+        <div class="loop-step">
+          <h4 data-i18n="loop.s2h">组件路由</h4>
+          <p data-i18n="loop.s2p">按失败码把样本送回导致它的那个模块</p>
+        </div>
+        <div class="loop-arrow" aria-hidden="true">→</div>
+        <div class="loop-step">
+          <h4 data-i18n="loop.s3h">FailureBuffer</h4>
+          <p data-i18n="loop.s3p">失败样本按码累积，达阈值触发</p>
+        </div>
+        <div class="loop-arrow" aria-hidden="true">→</div>
+        <div class="loop-step">
+          <h4 data-i18n="loop.s4h">增量微调</h4>
+          <p data-i18n="loop.s4p">只微调相关组件，替换权重后继续生成</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= DATASET ======================= -->
+  <section class="section" id="dataset">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="kicker" data-i18n="ds.kicker">数据集</p>
+        <h2 data-i18n="ds.h2">规模 · 构成 · 标注格式</h2>
+        <p class="section-lead" data-i18n="ds.lead">基准为 300 对可见光–伪红外样本，覆盖九类场景、五个时段、五类天气；300 组条件互不重复，条件熵在三个维度上分别为 3.305 / 3.296 / 2.497 bits。</p>
+      </header>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <caption data-i18n="ds.cap">数据集规格</caption>
+          <thead>
+            <tr><th data-i18n="ds.th1">项目</th><th data-i18n="ds.th2">值</th><th data-i18n="ds.th3">说明</th></tr>
+          </thead>
+          <tbody>
+            <tr><td data-i18n="ds.r1a">评测样本</td><td>302 <span data-i18n="ds.pairs">对</span></td><td data-i18n="ds.r1c">主基准 300 对 + 重绘臂与直贴臂共用的 1 条难例 ×2</td></tr>
+            <tr><td data-i18n="ds.r2a">背景池</td><td><span data-count="37852">37,852</span> <span data-i18n="ds.images">张</span></td><td data-i18n="ds.r2c">实拍背景，九类场景，仓库不含，需自行准备</td></tr>
+            <tr><td data-i18n="ds.r3a">场景类</td><td>9</td><td class="mono">airfield · coastal · desert · forest · industrial · mountain · pure_sky · rural · urban</td></tr>
+            <tr><td data-i18n="ds.r4a">时段 / 天气</td><td>5 / 5</td><td data-i18n="ds.r4c">时段 dawn→night；天气 clear / overcast / rainy / foggy / dusty / backlight</td></tr>
+            <tr><td data-i18n="ds.r5a">模态</td><td>RGB + <span data-i18n="ds.ir">伪红外</span></td><td data-i18n="ds.r5c">像素对齐，标注框共享同一坐标</td></tr>
+            <tr><td data-i18n="ds.r6a">画布</td><td>1280 × 853</td><td data-i18n="ds.r6c">主基准画布中位分辨率，中位对角 1538.18 px</td></tr>
+            <tr><td data-i18n="ds.r7a">目标像素尺度</td><td>12 – 96 px</td><td data-i18n="ds.r7c">按声明距离解析式给出（60 m → 60 px）</td></tr>
+            <tr><td data-i18n="ds.r8a">标注</td><td data-i18n="ds.r8b">bbox + 元数据</td><td data-i18n="ds.r8c">JSON 记录条件、真实框、深度与失败码</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="split split-wide">
+        <figure class="figure">
+          <picture>
+            <source srcset="assets/img/fig3_background_pool.webp" type="image/webp">
+            <img src="assets/img/fig3_background_pool.jpg" width="1400" height="1472" loading="lazy" alt="背景池九类场景 3×3 拼贴：机场、海岸、荒漠、森林、工业区、山地、纯天空、乡村、城市">
+          </picture>
+          <figcaption data-i18n="ds.fig3">图 4　九类背景池的 3×3 抽样：机场、海岸、荒漠、森林、工业区、山地、纯天空、乡村、城市。</figcaption>
+        </figure>
+        <div class="spec-list">
+          <h3 data-i18n="ds.comp.h">样本构成</h3>
+          <ul class="checklist">
+            <li data-i18n="ds.comp.1">每对样本由一张实拍背景、一次 LoRA 合成与一次 ControlNet 重绘构成</li>
+            <li data-i18n="ds.comp.2">目标距离三档：near / mid / far，对应不同像素尺度与透视约束</li>
+            <li data-i18n="ds.comp.3">条件元组（场景类 × 时段 × 天气 × 距离）在 300 对中互不重复</li>
+            <li data-i18n="ds.comp.4">验证链的每个判定都落盘，可追溯到具体阈值与失败码</li>
+            <li data-i18n="ds.comp.5">预处理脚本纯 CPU：背景池规范化与 LoRA 数据集打包各一条命令</li>
+          </ul>
+          <h3 data-i18n="ds.file.h">目录与格式</h3>
+          <pre class="code"><code>samples/
+├── b000_rgb.png        # 可见光成图
+├── b000_ir.png         # 伪红外（同坐标）
+├── b000_meta.json      # 条件 + gt_bbox + 深度 + 验证记录
+└── _batch_results.json # 批次汇总</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= RESULTS ======================= -->
+  <section class="section section-alt" id="results">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="kicker" data-i18n="res.kicker">结果</p>
+        <h2 data-i18n="res.h2">几何兑现程度</h2>
+        <p class="section-lead" data-i18n="res.lead">300 对主基准上的对齐与质量指标。位置误差已接近半像素量化界——这不是精度上限的证据，而是渲染分辨率决定的下限。</p>
+      </header>
+
+      <div class="metric-cards">
+        <div class="metric-card">
+          <p class="metric-label">E<sub>pos</sub></p>
+          <p class="metric-value"><span data-count="1.226" data-decimals="3">1.226</span> <span class="metric-pm">± 0.448 px</span></p>
+          <p class="metric-note" data-i18n="res.m1">质心位置误差 · 亚像素率 29.3%</p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-label">E<sub>scale</sub></p>
+          <p class="metric-value"><span data-count="0.028" data-decimals="3">0.028</span> <span class="metric-pm">± 0.021</span></p>
+          <p class="metric-note" data-i18n="res.m2">相对尺度误差 · ≤3% 占 61.3%</p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-label">IoU</p>
+          <p class="metric-value"><span data-count="0.706" data-decimals="3">0.706</span> <span class="metric-pm">± 0.126</span></p>
+          <p class="metric-note" data-i18n="res.m3">包围盒 IoU · ≥0.5 占 94.0%</p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-label">BRISQUE</p>
+          <p class="metric-value"><span data-count="20.55" data-decimals="2">20.55</span></p>
+          <p class="metric-note" data-i18n="res.m4">无参考质量 · 通过率 88.3%</p>
+        </div>
+      </div>
+
+      <figure class="figure">
+        <picture>
+          <source srcset="assets/img/fig6_alignment.webp" type="image/webp">
+          <img src="assets/img/fig6_alignment.jpg" width="1400" height="977" loading="lazy" alt="对齐精度四子图：位置误差、尺度误差、IoU 与 BRISQUE 的分布">
+        </picture>
+        <figcaption data-i18n="res.fig6">图 5　300 对主基准上的四项指标分布：位置误差、相对尺度误差、包围盒 IoU、BRISQUE。</figcaption>
+      </figure>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <caption data-i18n="res.cap">对齐与质量（300 对主基准）</caption>
+          <thead><tr><th data-i18n="res.th1">指标</th><th data-i18n="res.th2">值</th><th data-i18n="res.th3">范围 / 通过率</th></tr></thead>
+          <tbody>
+            <tr><td>E<sub>pos</sub></td><td>1.226 ± 0.448 px</td><td>[0.228, 5.708] px</td></tr>
+            <tr><td>E<sub>scale</sub></td><td>0.028 ± 0.021</td><td>[0.010, 0.208]</td></tr>
+            <tr><td>IoU</td><td>0.706 ± 0.126</td><td>[0.377, 0.959]</td></tr>
+            <tr><td data-i18n="res.r4">IoU ≥ 0.5</td><td>94.0%</td><td data-i18n="res.r4c">282 / 300</td></tr>
+            <tr><td data-i18n="res.r5">亚像素率（E<sub>pos</sub> &lt; 1 px）</td><td>29.3%</td><td data-i18n="res.r5c">88 / 300</td></tr>
+            <tr><td data-i18n="res.r6">BRISQUE</td><td>20.55</td><td data-i18n="res.r6c">中位 14.64，σ 20.66</td></tr>
+            <tr><td data-i18n="res.r7">质量通过率（≤ 45）</td><td>88.3%</td><td data-i18n="res.r7c">265 / 300</td></tr>
+            <tr><td data-i18n="res.r8">超出半像素量化界</td><td>98.0%</td><td data-i18n="res.r8c">294 / 300，位置精度受渲染分辨率约束</td></tr>
+            <tr><td data-i18n="res.r9">均方位移 / 中位画布对角</td><td>0.080%</td><td data-i18n="res.r9c">最差单样本 0.253%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="split">
+        <figure class="figure figure-tight">
+          <picture>
+            <source srcset="assets/img/fig7_ablation.webp" type="image/webp">
+            <img src="assets/img/fig7_ablation.jpg" width="1034" height="1163" loading="lazy" alt="消融 E1 定性对比：硬贴与标记注入两臂，按 near/mid/far 三档给出 GT 框">
+          </picture>
+          <figcaption data-i18n="res.fig7">图 6　消融 E1 定性对比：硬贴与标记注入两臂，按 near / mid / far 三档给出真实框。</figcaption>
+        </figure>
+        <div>
+          <h3 data-i18n="res.e1h">消融 E1：一个 null result</h3>
+          <p data-i18n="res.e1p">150 配对 ×2 臂。几何与无参考质量两臂不可区分——位置误差 1.241 vs 1.241 px、IoU 0.706 vs 0.706、BRISQUE 20.67 vs 20.64。协调性指标 LCR 上注入臂显著更低（1.338 vs 1.655，Wilcoxon p = 4.9e-05），RLJ 差异不显著（p = 0.952）。</p>
+          <p class="callout" data-i18n="res.e1c"><strong>结论是 null result，不是「注入更差」。</strong>早期版本里的 trade-off 论述已废弃。</p>
+          <div class="table-scroll">
+            <table class="data-table compact">
+              <thead><tr><th data-i18n="res.e1th1">指标</th><th data-i18n="res.e1th2">注入</th><th data-i18n="res.e1th3">硬贴</th><th>p</th></tr></thead>
+              <tbody>
+                <tr><td>LCR ↓</td><td>1.338</td><td>1.655</td><td>4.9e-05</td></tr>
+                <tr><td>RLJ ↓</td><td>0.242</td><td>0.247</td><td>0.952</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <section class="boundary">
+        <h3 data-i18n="res.bh">证据边界</h3>
+        <p data-i18n="res.bp">实验刻画的是<strong>生成过程</strong>——目标是否落在要求的位置与尺度、缺陷样本是否被拦下——而不是产品效用。没有检测器在 CDFF 输出上训练并在真实影像上评估，因此本工作不支持“检测精度提升”的主张。V9 使用 COCO 预训练的 YOLOv8x，其类别表不含无人机，只作下游显著性代理。</p>
+      </section>
+    </div>
+  </section>
+
+  <!-- ======================= VALIDATION ======================= -->
+  <section class="section" id="validation">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="kicker" data-i18n="val.kicker">验证链</p>
+        <h2 data-i18n="val.h2">V1–V9：把「看起来行」换成可追责的判定</h2>
+        <p class="section-lead" data-i18n="val.lead">在 302 张成图上，单看 BRISQUE 阈值会接受 267 张（88.4%），而 V6→V7→V9 链接受 161 张（53.3%），两者一致 158 张。Jaccard 0.585——差集就是「画得好看但几何站不住」的那批样本。</p>
+      </header>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <caption data-i18n="val.cap">九个验证阶段</caption>
+          <thead><tr><th data-i18n="val.th1">阶段</th><th data-i18n="val.th2">作用</th><th data-i18n="val.th3">检查数</th><th data-i18n="val.th4">失败码</th></tr></thead>
+          <tbody>
+            <tr><td>V1</td><td data-i18n="val.v1">JSON 结构</td><td>6</td><td class="mono">A1_*</td></tr>
+            <tr><td>V2</td><td data-i18n="val.v2">Transformer 解析</td><td>6</td><td class="mono">A2_*</td></tr>
+            <tr><td>V3</td><td data-i18n="val.v3">ControlNet 条件</td><td>4</td><td class="mono">A3_*</td></tr>
+            <tr><td>V4</td><td data-i18n="val.v4">LoRA 采样</td><td>3</td><td class="mono">A4_*</td></tr>
+            <tr><td>V5</td><td data-i18n="val.v5">红外通道</td><td>3</td><td class="mono">A5_*</td></tr>
+            <tr><td>V6</td><td data-i18n="val.v6">感知质量</td><td>3</td><td class="mono">S6_*</td></tr>
+            <tr><td>V7</td><td data-i18n="val.v7">一致性（尺寸 / 光照 / IR 框 / 跨模态）</td><td>4</td><td class="mono">S7_*</td></tr>
+            <tr><td>V8</td><td data-i18n="val.v8">轨迹物理</td><td>4</td><td class="mono">S8_*</td></tr>
+            <tr><td>V9</td><td data-i18n="val.v9">检测代理</td><td>3</td><td class="mono">S9_*</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout-grid">
+        <article class="callout-card">
+          <h4 data-i18n="val.t1h">三态，不是两态</h4>
+          <p data-i18n="val.t1p">V7 的每个维度只有 PASS / FAIL / SKIP 三种状态，而 <strong>SKIP 不是通过</strong>：没有可用输入的维度记为 SKIP 并排除在判定之外；一个维度都没评估的样本判 SKIP 而不是接受。</p>
+        </article>
+        <article class="callout-card">
+          <h4 data-i18n="val.t2h">跨模态 IoU 的诚实读法</h4>
+          <p data-i18n="val.t2p">RGB 与伪红外的框 IoU 恒等于 1.000，因为两者按构造来自同一坐标。它验证的是管线自洽，<strong>不是</strong>一项独立测量。</p>
+        </article>
+        <article class="callout-card">
+          <h4 data-i18n="val.t3h">无权重可自检</h4>
+          <p data-i18n="val.t3p">三态约定由 <code>validator/v7_consistency/test_s7_tristate.py</code> 钉死，不需要任何模型权重即可运行。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= ACCESS ======================= -->
+  <section class="section section-alt" id="access">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="kicker" data-i18n="acc.kicker">获取</p>
+        <h2 data-i18n="acc.h2">三条路径</h2>
+        <p class="section-lead" data-i18n="acc.lead">代码以 MIT 发布；权重、底模与图片各自另有许可，不随仓库分发。若需要评测集或已训练的适配器，请通过仓库 Issue 联系作者。</p>
+      </header>
+
+      <div class="access-grid">
+        <article class="access-card">
+          <span class="access-tag">A</span>
+          <h3 data-i18n="acc.a.h">跑通框架</h3>
+          <p data-i18n="acc.a.p">克隆仓库、装依赖、把资产指到本地目录，即可开始生成。几十张背景图就能跑通全流程。</p>
+          <pre class="code"><code>git clone https://github.com/TAAS2024/low-slow-small-targets-dataset
+cd low-slow-small-targets-dataset
+pip install -r requirements.txt
+python notebooks/smoke_run.py</code></pre>
+          <a class="link-arrow" href="https://github.com/TAAS2024/low-slow-small-targets-dataset#readme" target="_blank" rel="noopener" data-i18n="acc.a.l">阅读 README</a>
+        </article>
+
+        <article class="access-card">
+          <span class="access-tag">B</span>
+          <h3 data-i18n="acc.b.h">复现 300 对基准</h3>
+          <p data-i18n="acc.b.p">评测与消融脚本都在 <code>experiments/</code> 下，只读 <code>out_*</code> 的 JSON；重画图表是秒级的。</p>
+          <pre class="code"><code>cd experiments/bcd
+python3 make_paper_figs.py
+python3 audit_tables_v20.py</code></pre>
+          <a class="link-arrow" href="https://github.com/TAAS2024/low-slow-small-targets-dataset/tree/main/experiments" target="_blank" rel="noopener" data-i18n="acc.b.l">查看复现脚本</a>
+        </article>
+
+        <article class="access-card">
+          <span class="access-tag">C</span>
+          <h3 data-i18n="acc.c.h">评测集与权重</h3>
+          <p data-i18n="acc.c.p">背景池来自第三方实拍图库，不随项目再分发；目标 LoRA 与合并权重继承底模许可。<strong>按需申请</strong>，请说明机构与用途。</p>
+          <ul class="checklist small">
+            <li data-i18n="acc.c.1">仅限学术研究与教学</li>
+            <li data-i18n="acc.c.2">不得二次分发或转售</li>
+            <li data-i18n="acc.c.3">衍生权重继续受 CreativeML OpenRAIL-M 约束</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/TAAS2024/low-slow-small-targets-dataset/issues" target="_blank" rel="noopener" data-i18n="acc.c.l">通过 Issue 联系</a>
+        </article>
+      </div>
+
+      <div class="license-block">
+        <h3 data-i18n="lic.h">许可</h3>
+        <p data-i18n="lic.lead"><strong>源码是 MIT，但整个项目不是 MIT。</strong>下表说明每个组成部分的真实条款。</p>
+        <div class="table-scroll">
+          <table class="data-table compact">
+            <thead><tr><th data-i18n="lic.th1">组成</th><th data-i18n="lic.th2">许可</th><th data-i18n="lic.th3">随仓库分发</th></tr></thead>
+            <tbody>
+              <tr><td data-i18n="lic.r1">本项目原创源码</td><td>MIT</td><td data-i18n="lic.yes">是</td></tr>
+              <tr><td data-i18n="lic.r2">Stable Diffusion v1.5 底模</td><td>CreativeML OpenRAIL-M</td><td data-i18n="lic.no">否</td></tr>
+              <tr><td data-i18n="lic.r3">ControlNet depth / seg</td><td>OpenRAIL</td><td data-i18n="lic.no2">否</td></tr>
+              <tr><td data-i18n="lic.r4">LoRA 适配器与合并权重</td><td data-i18n="lic.r4b">CreativeML OpenRAIL-M（继承）</td><td data-i18n="lic.no3">否</td></tr>
+              <tr><td>MiDaS · CLIP</td><td>MIT</td><td data-i18n="lic.no4">否</td></tr>
+              <tr><td data-i18n="lic.r5">Ultralytics YOLOv8（可选，V9）</td><td>AGPL-3.0</td><td data-i18n="lic.no5">否，默认不安装</td></tr>
+              <tr><td data-i18n="lic.r6">背景池 / 无人机原图 / 评测集图片</td><td data-i18n="lic.r6b">各自原始来源条款</td><td data-i18n="lic.no6">否</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="license-note" data-i18n="lic.note">LoRA 适配器是底模的衍生作品，因此它本身以及由它合并出的任何 checkpoint 都继续受 CreativeML OpenRAIL-M 约束，包括其 Attachment A 的使用限制；分发时必须一并附上该许可。逐项条款见仓库中的 <code>THIRD_PARTY_LICENSES.md</code> 与 <code>NOTICE</code>。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= CITE ======================= -->
+  <section class="section" id="cite">
+    <div class="wrap">
+      <header class="section-head">
+        <p class="kicker" data-i18n="cite.kicker">引用</p>
+        <h2 data-i18n="cite.h2">如果本框架或基准对你的研究有帮助</h2>
+      </header>
+
+      <div class="cite-grid">
+        <div class="cite-card">
+          <div class="cite-head">
+            <h3 data-i18n="cite.paper">论文</h3>
+            <button class="copy-btn" data-copy="#bib-paper" type="button" data-i18n="cite.copy">复制 BibTeX</button>
+          </div>
+          <pre class="code" id="bib-paper"><code>@article{li_cdff,
+  title  = {A Spatially Controlled Closed-Loop Framework for Synthetic
+            Low-Slow-Small Target Dataset Generation},
+  author = {Li, Qingming and Zhang, Yanxin and Zhu, Zhongpan and He, Bin},
+  note   = {Manuscript under review, Neurocomputing}
+}</code></pre>
+        </div>
+        <div class="cite-card">
+          <div class="cite-head">
+            <h3 data-i18n="cite.repo">代码与框架</h3>
+            <button class="copy-btn" data-copy="#bib-repo" type="button" data-i18n="cite.copy">复制 BibTeX</button>
+          </div>
+          <pre class="code" id="bib-repo"><code>@misc{cdff2026,
+  title        = {CDFF: Closed-Loop Dataset Fabrication Framework for
+                  Low-Slow-Small Aerial Targets},
+  author       = {Li, Qingming and Zhang, Yanxin and Zhu, Zhongpan and He, Bin},
+  year         = {2026},
+  howpublished = {\url{https://github.com/TAAS2024/low-slow-small-targets-dataset}},
+  note         = {Source code licensed MIT; model weights inherit
+                  CreativeML OpenRAIL-M}
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark">CDFF</span>
+      <p data-i18n="foot.tag">面向低慢小空中目标的合成数据生成框架。几何先声明，渲染后可验证。</p>
+    </div>
+    <nav class="footer-nav" aria-label="页脚导航">
+      <div>
+        <h4 data-i18n="foot.nav1">项目</h4>
+        <a href="https://github.com/TAAS2024/low-slow-small-targets-dataset" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/TAAS2024/low-slow-small-targets-dataset/blob/main/README.md" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/TAAS2024/low-slow-small-targets-dataset/blob/main/THIRD_PARTY_LICENSES.md" target="_blank" rel="noopener" data-i18n="foot.lic">第三方许可</a>
+      </div>
+      <div>
+        <h4 data-i18n="foot.nav2">本页</h4>
+        <a href="#overview" data-i18n="nav.overview">概览</a>
+        <a href="#results" data-i18n="nav.results">结果</a>
+        <a href="#access" data-i18n="nav.access">获取</a>
+      </div>
+      <div>
+        <h4 data-i18n="foot.nav3">联系</h4>
+        <a href="https://github.com/TAAS2024/low-slow-small-targets-dataset/issues" target="_blank" rel="noopener" data-i18n="foot.issue">Issues</a>
+        <a href="#cite" data-i18n="nav.cite">引用</a>
+      </div>
+    </nav>
+  </div>
+  <div class="wrap footer-bottom">
+    <p data-i18n="foot.copy">© 2026 CDFF Authors. 源码 MIT；权重与底模遵循各自许可。</p>
+    <p data-i18n="foot.disc">本页仅描述生成过程与基准协议，不构成检测精度证据。</p>
+  </div>
+</footer>
+
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
