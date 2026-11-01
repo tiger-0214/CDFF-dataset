@@ -134,7 +134,7 @@
         </article>
         <article class="feature">
           <h3 data-i18n="feat.3h">闭环反馈</h3>
-          <p data-i18n="feat.3p">验证端输出结构化失败码，路由回对应组件，累计到阈值后触发增量微调与权重替换。</p>
+          <p data-i18n="feat.3p">验证端输出结构化失败码并路由回源模块，微调通路确实接上了；但四轮 60 点始终没填满缓冲区容量（适配器 50 / ControlNet 30 / 解析器 20），实测起作用的是采样预算在 40 个层间的重分配。</p>
         </article>
         <article class="feature">
           <h3 data-i18n="feat.4h">像素对齐 RGB–IR</h3>
@@ -224,14 +224,27 @@
         <div class="loop-arrow" aria-hidden="true">→</div>
         <div class="loop-step">
           <h4 data-i18n="loop.s3h">FailureBuffer</h4>
-          <p data-i18n="loop.s3p">失败样本按码累积，达阈值触发</p>
+          <p data-i18n="loop.s3p">失败样本按码累积；容量 50 / 30 / 20，四轮 60 点极少达到</p>
         </div>
         <div class="loop-arrow" aria-hidden="true">→</div>
         <div class="loop-step">
           <h4 data-i18n="loop.s4h">增量微调</h4>
-          <p data-i18n="loop.s4p">只微调相关组件，替换权重后继续生成</p>
+          <p data-i18n="loop.s4p">设计上只微调相关组件；实测产出率提升来自按层通过率重排采样预算</p>
         </div>
       </div>
+
+      <div class="table-scroll">
+        <table class="data-table compact">
+          <caption data-i18n="loop.cap">闭环四轮 × 60 点：三种策略</caption>
+          <thead><tr><th data-i18n="loop.th1">策略</th><th data-i18n="loop.th2">每点尝试</th><th data-i18n="loop.th3">配额完成</th><th data-i18n="loop.th4">单接受样本</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="loop.a1">A1 开环</td><td>1</td><td>138 / 240（57.5%）</td><td>30.9 s</td></tr>
+            <tr><td data-i18n="loop.a2">A2 预算重分配</td><td>&le; 3</td><td>172 / 240（71.7%）</td><td>74.7 s</td></tr>
+            <tr><td data-i18n="loop.a3">A3 ＋课程加难</td><td>&le; 3</td><td>172 / 240（71.7%）</td><td>84.9 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="callout" data-i18n="loop.note">A1 每点只允许一次尝试，故其单点接受率等于配额完成率（0.567–0.583）。层权重每轮乘上「该层平滑通过率 ÷ 全局通过率」，平滑式为 (passes + 2) / (attempts + 4)，再以均匀份额的 30% 为下限并归一化；A2 的层权重跨度由 1.00 扩到 6.15 倍。<strong>BRISQUE 与 IoU 四轮持平</strong>——闭环改变的是哪些层填满配额，不是单张样本渲染得多好；71% 的拒绝携带生成器无法修复的检测响应。</p>
     </div>
   </section>
 
@@ -241,7 +254,7 @@
       <header class="section-head">
         <p class="kicker" data-i18n="ds.kicker">数据集</p>
         <h2 data-i18n="ds.h2">规模 · 构成 · 标注格式</h2>
-        <p class="section-lead" data-i18n="ds.lead">基准为 300 对可见光–伪红外样本，覆盖九类场景、五个时段、五类天气；300 组条件互不重复，条件熵在三个维度上分别为 3.305 / 3.296 / 2.497 bits。</p>
+        <p class="section-lead" data-i18n="ds.lead">基准为 300 对可见光–伪红外样本，覆盖九类场景、五个时段、五类天气；300 组条件互不重复。条件熵：水平坐标 3.305 bits、垂直坐标 3.296 bits（十等宽分箱），目标尺度取八个离散档位，熵 3.000 bits——即该基数下的可达上限。</p>
       </header>
 
       <div class="table-scroll">
@@ -257,7 +270,7 @@
             <tr><td data-i18n="ds.r4a">时段 / 天气</td><td>5 / 5</td><td data-i18n="ds.r4c">时段 dawn→night；天气 clear / overcast / rainy / foggy / dusty / backlight</td></tr>
             <tr><td data-i18n="ds.r5a">模态</td><td>RGB + <span data-i18n="ds.ir">伪红外</span></td><td data-i18n="ds.r5c">像素对齐，标注框共享同一坐标</td></tr>
             <tr><td data-i18n="ds.r6a">画布</td><td>1280 × 853</td><td data-i18n="ds.r6c">主基准画布中位分辨率，中位对角 1538.18 px</td></tr>
-            <tr><td data-i18n="ds.r7a">目标像素尺度</td><td>12 – 96 px</td><td data-i18n="ds.r7c">按声明距离解析式给出（60 m → 60 px）</td></tr>
+            <tr><td data-i18n="ds.r7a">目标像素尺度</td><td>13 – 96 px</td><td data-i18n="ds.r7c">声明档位 20 – 96 px，实测框边长 13 – 96 px、中位 37 px；按声明距离解析式给出（60 m → 60 px）</td></tr>
             <tr><td data-i18n="ds.r8a">标注</td><td data-i18n="ds.r8b">bbox + 元数据</td><td data-i18n="ds.r8c">JSON 记录条件、真实框、深度与失败码</td></tr>
           </tbody>
         </table>
@@ -359,23 +372,39 @@
         </figure>
         <div>
           <h3 data-i18n="res.e1h">消融 E1：一个 null result</h3>
-          <p data-i18n="res.e1p">150 配对 ×2 臂。几何与无参考质量两臂不可区分——位置误差 1.241 vs 1.241 px、IoU 0.706 vs 0.706、BRISQUE 20.67 vs 20.64。协调性指标 LCR 上注入臂显著更低（1.338 vs 1.655，Wilcoxon p = 4.9e-05），RLJ 差异不显著（p = 0.952）。</p>
+          <p data-i18n="res.e1p">150 配对 ×2 臂。几何与全局质量两臂不可区分——位置误差 1.241 vs 1.241 px、IoU 0.706 vs 0.706、BRISQUE 20.67 vs 20.64、质量通过率同为 88.7%。分离只出现在边界融合上：局部对比比 LCR 上注入臂显著更低（1.338 vs 1.655，Wilcoxon p = 4.9e-05），而环带亮度跳变 RLJ（0.243 vs 0.247，p = 0.95）与边界梯度超额 BGE（2.153 vs 2.253，−4.4%，p = 0.96）都未被检出。</p>
           <p class="callout" data-i18n="res.e1c"><strong>结论是 null result，不是「注入更差」。</strong>早期版本里的 trade-off 论述已废弃。</p>
           <div class="table-scroll">
             <table class="data-table compact">
               <thead><tr><th data-i18n="res.e1th1">指标</th><th data-i18n="res.e1th2">注入</th><th data-i18n="res.e1th3">硬贴</th><th>p</th></tr></thead>
               <tbody>
                 <tr><td>LCR ↓</td><td>1.338</td><td>1.655</td><td>4.9e-05</td></tr>
-                <tr><td>RLJ ↓</td><td>0.242</td><td>0.247</td><td>0.952</td></tr>
+                <tr><td>RLJ ↓</td><td>0.243</td><td>0.247</td><td>0.95</td></tr>
+                <tr><td>BGE ↓</td><td>2.153</td><td>2.253</td><td>0.96</td></tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
+      <div class="split">
+        <div>
+          <h3 data-i18n="res.e2h">消融 E2：条件维度</h3>
+          <p data-i18n="res.e2p">100 配对目标重生成五臂：双条件、仅深度、仅分割，以及把分割权重降到 0.60 / 0.40。对齐在五臂间完全相同（IoU 0.706、位置误差 1.252 px），因为坐标与尺度在生成模型上游就已固定，条件只决定选中区域怎么重绘。分离只出现在边界融合上，且方向与「双条件更好」的预期相反：双条件的 BGE 2.286 显著差于仅深度 2.114（p = 1.1e-05），好于仅分割 2.316（p = 0.006，未校正）；LCR 上 1.302 对 1.268（p = 0.76）与 1.258（p = 0.027）。</p>
+          <p data-i18n="res.e2s">权重扫描排除了「两条分支共用同一尺度导致过约束」这一解释：深度固定 0.85，分割由 0.85 降到 0.60、0.40，BGE 只从 2.286 走到 2.276、2.249（p = 0.525、0.149），LCR 停在 1.305、1.300（p = 0.879、0.918）。分割权重只解释 0.172 差距中的 0.037。</p>
+          <h3 data-i18n="res.e3h">消融 E3：目标适配器的贡献</h3>
+          <p data-i18n="res.e3p">100 配对目标在「适配器合并 / 关闭」两臂间重生成，落位不受影响：位置误差 1.252 vs 1.249 px（p = 0.53）、相对尺度误差不可区分（p = 0.34）。框 IoU 由 0.706 升到 0.744（p = 9.0e-04，rank-biserial r = 0.33），移动的是适配器渲染出的轮廓而不是落位——参考框在上游由标记注入固定。BGE 2.286 vs 2.331（p = 0.209，未检出），BRISQUE 20.55 vs 20.54、通过率同为 89.0%。这正是设计分工：落位来自标记注入与解析式，外观来自适配器。</p>
+        </div>
+      </div>
+
+      <section class="boundary">
+        <h3 data-i18n="res.multh">多重比较</h3>
+        <p data-i18n="res.multp">§4.5 共报告 16 项配对检验，双侧、未校正。若按 Bonferroni 取 0.05 / 16 = 3.1e-03，只有三项仍然成立：重绘对 LCR 的边界效应（p = 4.9e-05）、双条件对仅深度（p = 1.1e-05）、适配器对框 IoU 的位移（p = 9.0e-04）。其余检验按探索性结果读，不作为结论依据。</p>
+      </section>
+
       <section class="boundary">
         <h3 data-i18n="res.bh">证据边界</h3>
-        <p data-i18n="res.bp">实验刻画的是<strong>生成过程</strong>——目标是否落在要求的位置与尺度、缺陷样本是否被拦下——而不是产品效用。没有检测器在 CDFF 输出上训练并在真实影像上评估，因此本工作不支持“检测精度提升”的主张。V9 使用 COCO 预训练的 YOLOv8x，其类别表不含无人机，只作下游显著性代理。</p>
+        <p data-i18n="res.bp">实验刻画的是<strong>生成过程</strong>——目标是否落在要求的位置与尺度、缺陷样本是否被拦下——而不是产品效用。没有检测器在 CDFF 输出上训练并在真实影像上评估，因此本工作不支持“检测精度提升”的主张。V9 使用 COCO 预训练的 YOLOv8x，其类别表不含无人机，只作下游显著性代理。人工标注一致性尚未测量，也没有在生成池上计算 FID 一类分布指标，故下游检测收益仍属未测。</p>
       </section>
     </div>
   </section>
@@ -386,7 +415,7 @@
       <header class="section-head">
         <p class="kicker" data-i18n="val.kicker">验证链</p>
         <h2 data-i18n="val.h2">V1–V9：把「看起来行」换成可追责的判定</h2>
-        <p class="section-lead" data-i18n="val.lead">在 302 张成图上，单看 BRISQUE 阈值会接受 267 张（88.4%），而 V6→V7→V9 链接受 161 张（53.3%），两者一致 158 张。Jaccard 0.585——差集就是「画得好看但几何站不住」的那批样本。</p>
+        <p class="section-lead" data-i18n="val.lead">在 302 张成图上，单看 BRISQUE 阈值会接受 267 张（88.4%），而 V6→V7→V9 链接受 161 张（53.3%），两者一致 158 张，Jaccard 0.585。被阈值放行、又被链拒掉的 109 张里，108 张带不可检测码、1 张未过可见光质量级；反方向另有 3 张，源于 V6 经 OpenCV 以 BGR 读图、而统计走 PIL 的 RGB 读路径。因此 40.8% 衡量的是检测器在几十像素目标上的显著性，不是成图肉眼可见的缺陷。</p>
       </header>
 
       <div class="table-scroll">
